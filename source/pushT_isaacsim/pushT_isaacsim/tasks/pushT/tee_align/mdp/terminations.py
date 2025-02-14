@@ -1,28 +1,75 @@
 import torch
+from typing import TYPE_CHECKING
 
-from isaaclab.envs.mdp.terminations import check_timeout
-from isaaclab.utils.torch_utils import quat_diff_rad
+from isaaclab.assets import RigidObject
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.utils.math import quat_error_magnitude
 
-def time_out(env, _) -> torch.Tensor:
-    """Check if the episode has timed out."""
-    return check_timeout(env)
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedRLEnv
 
-def tee_aligned(env, _) -> torch.Tensor:
-    """Check if the T-shaped object is aligned with the marker."""
-    # Get positions
-    object_pos = env.scene.get_frame_world_position("tee_object")
-    marker_pos = env.scene.get_frame_world_position("tee_marker")
+def time_out(env: "ManagerBasedRLEnv") -> torch.Tensor:
+    """Terminate the episode when the episode length exceeds the maximum episode length."""
+    return env.episode_length_buf >= env.max_episode_length
+
+def tee_aligned(
+    env: "ManagerBasedRLEnv",
+    distance_threshold: float = 0.02,
+    angle_threshold: float = 0.1,
+    object_cfg: SceneEntityCfg = SceneEntityCfg("tee_object"),
+    marker_cfg: SceneEntityCfg = SceneEntityCfg("tee_marker")
+) -> torch.Tensor:
+    """Check if the T-shaped object is aligned with the marker.
     
-    # Get orientations
-    object_quat = env.scene.get_frame_world_quaternion("tee_object")
-    marker_quat = env.scene.get_frame_world_quaternion("tee_marker")
+    Args:
+        env: The environment instance.
+        distance_threshold: Maximum distance for success. Default is 0.02.
+        angle_threshold: Maximum orientation error for success. Default is 0.1.
+        object_cfg: Configuration for the T-shaped object.
+        marker_cfg: Configuration for the target marker.
+        
+    Returns:
+        torch.Tensor: Boolean tensor indicating if alignment is achieved.
+    """
+    object: RigidObject = env.scene[object_cfg.name]
+    marker: RigidObject = env.scene[marker_cfg.name]
+    
+    # Get positions and orientations
+    object_pos = object.data.root_pos_w
+    marker_pos = marker.data.root_pos_w
+    object_quat = object.data.root_quat_w
+    marker_quat = marker.data.root_quat_w
     
     # Check position alignment
-    pos_diff = torch.norm(object_pos - marker_pos, dim=-1)
-    pos_aligned = pos_diff < 0.02  # 2cm threshold
+    distance = torch.norm(object_pos - marker_pos, p=2, dim=-1)
+    pos_aligned = distance < distance_threshold
     
     # Check orientation alignment
-    angle_diff = quat_diff_rad(object_quat, marker_quat)
-    rot_aligned = angle_diff < 0.1  # ~5.7 degrees threshold
+    quat_error = quat_error_magnitude(object_quat, marker_quat)
+    rot_aligned = quat_error < angle_threshold
     
-    return pos_aligned & rot_aligned 
+    return pos_aligned & rot_aligned
+
+def object_away_from_robot(
+    env: "ManagerBasedRLEnv",
+    threshold: float = 0.3,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("tee_object")
+) -> torch.Tensor:
+    """Check if the object has gone too far from the robot.
+    
+    Args:
+        env: The environment instance.
+        threshold: Maximum allowed distance between robot and object.
+        asset_cfg: Configuration for the robot.
+        object_cfg: Configuration for the T-shaped object.
+        
+    Returns:
+        torch.Tensor: Boolean tensor indicating if object is too far.
+    """
+    robot: RigidObject = env.scene[asset_cfg.name]
+    object: RigidObject = env.scene[object_cfg.name]
+    
+    # Compute distance between robot and object
+    dist = torch.norm(robot.data.root_pos_w - object.data.root_pos_w, dim=1)
+    return dist > threshold 

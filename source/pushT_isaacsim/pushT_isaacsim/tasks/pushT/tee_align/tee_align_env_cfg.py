@@ -64,20 +64,6 @@ class TeeAlignSceneCfg(InteractiveSceneCfg):
         ),
     )
 
-    # T-shaped visual marker (target)
-    tee_marker = VisualizationMarkersCfg(
-        prim_path="{ENV_REGEX_NS}/TeeMarker",
-        markers={
-            "marker": UsdFileCfg(
-                usd_path=f"{pwd}/resource/Tee.usd",
-                scale=(1.0, 1.0, 1.0),
-                visual_material=sim_utils.VisualMaterialCfg(
-                    color=(0.2, 0.8, 0.2, 0.5),  # Semi-transparent green
-                ),
-            ),
-        },
-    )
-
     # Ground plane
     plane = AssetBaseCfg(
         prim_path="/World/GroundPlane",
@@ -109,7 +95,7 @@ class CommandsCfg:
             prim_path="/Visuals/Command/goal_marker",
             markers={
                 "goal": UsdFileCfg(
-                    usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Shapes/T_shape_marker.usd",
+                    usd_path=f"{pwd}/resource/Tee.usd",
                     scale=(1.0, 1.0, 1.0),
                 ),
             },
