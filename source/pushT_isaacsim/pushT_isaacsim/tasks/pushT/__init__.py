@@ -1,3 +1,3 @@
 """Locomotion environments for legged robots."""
 
-from .pushT import *  # noqa
+from .tee_align import *  # noqa
