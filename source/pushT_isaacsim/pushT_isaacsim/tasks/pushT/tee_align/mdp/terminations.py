@@ -17,7 +17,7 @@ def tee_aligned(
     distance_threshold: float = 0.02,
     angle_threshold: float = 0.1,
     object_cfg: SceneEntityCfg = SceneEntityCfg("tee_object"),
-    marker_cfg: SceneEntityCfg = SceneEntityCfg("tee_marker")
+    command_name: str = "tee_pose",
 ) -> torch.Tensor:
     """Check if the T-shaped object is aligned with the marker.
     
@@ -26,26 +26,26 @@ def tee_aligned(
         distance_threshold: Maximum distance for success. Default is 0.02.
         angle_threshold: Maximum orientation error for success. Default is 0.1.
         object_cfg: Configuration for the T-shaped object.
-        marker_cfg: Configuration for the target marker.
+        command_name: Name of the command term.
         
     Returns:
         torch.Tensor: Boolean tensor indicating if alignment is achieved.
     """
     object: RigidObject = env.scene[object_cfg.name]
-    marker: RigidObject = env.scene[marker_cfg.name]
+    command = env.command_manager.get_command(command_name)
     
     # Get positions and orientations
     object_pos = object.data.root_pos_w
-    marker_pos = marker.data.root_pos_w
+    command_pos = command[:, 0:3]
     object_quat = object.data.root_quat_w
-    marker_quat = marker.data.root_quat_w
+    command_quat = command[:, 3:7]
     
     # Check position alignment
-    distance = torch.norm(object_pos - marker_pos, p=2, dim=-1)
+    distance = torch.norm(object_pos - command_pos, p=2, dim=-1)
     pos_aligned = distance < distance_threshold
     
     # Check orientation alignment
-    quat_error = quat_error_magnitude(object_quat, marker_quat)
+    quat_error = quat_error_magnitude(object_quat, command_quat)
     rot_aligned = quat_error < angle_threshold
     
     return pos_aligned & rot_aligned

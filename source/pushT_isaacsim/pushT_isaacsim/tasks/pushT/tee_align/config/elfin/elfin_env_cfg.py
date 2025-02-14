@@ -3,7 +3,6 @@
 import isaaclab.sim as sim_utils
 from isaaclab.utils import configclass
 from isaaclab.assets.articulation import ArticulationCfg
-from isaaclab.sensors import CameraCfg, TiledCamera, TiledCameraCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -42,7 +41,7 @@ ELFIN_ROBOT_CFG = ArticulationCfg(
             "elfin_joint5": 0.97,
             "elfin_joint6": 0.0,
         },
-        pos=(0.0, 0.0, 0.8)
+        pos=(0.0, 0.0, 0.0)
     ),
     actuators={
         "joint_actuator1": ImplicitActuatorCfg(
@@ -91,17 +90,7 @@ ELFIN_ROBOT_CFG = ArticulationCfg(
     soft_joint_pos_limit_factor=1.0,
 )
 
-# Top-down camera
-TABLE_CAM_CFG = TiledCameraCfg(
-    prim_path="{ENV_REGEX_NS}/table_camera",
-    offset=TiledCameraCfg.OffsetCfg(pos=(0.275, -0.05, 2), rot=(1.0, 0.0, 0.0, 0.0), convention="opengl"),
-    data_types=["rgb", "depth", "semantic_segmentation"],
-    spawn=sim_utils.PinholeCameraCfg(
-        focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
-    ),
-    width=640,
-    height=480,
-)
+
 
 @configclass
 class ElfinTeeAlignEnvCfg(tee_align_env_cfg.TeeAlignEnvCfg):
@@ -113,8 +102,6 @@ class ElfinTeeAlignEnvCfg(tee_align_env_cfg.TeeAlignEnvCfg):
 
         # Set robot configuration
         self.scene.robot = ELFIN_ROBOT_CFG
-        # Set camera configuration
-        self.scene.table_cam = TABLE_CAM_CFG
 
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
             asset_name="robot",

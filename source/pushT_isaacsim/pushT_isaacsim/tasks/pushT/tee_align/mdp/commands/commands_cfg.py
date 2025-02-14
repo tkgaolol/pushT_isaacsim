@@ -50,7 +50,8 @@ class TeeAlignCommandCfg(CommandTermCfg):
         markers={
             "goal": sim_utils.UsdFileCfg(
                 usd_path=f"{pwd}/resource/Tee.usd",
-                scale=(1.0, 1.0, 1.0),
+                scale=(0.0005, 0.0005, 0.0005),
+                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0), metallic=0.2),
             ),
         },
     )

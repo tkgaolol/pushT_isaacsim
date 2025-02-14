@@ -9,8 +9,9 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import CommandTermCfg as CmdTerm
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import CameraCfg
+from isaaclab.sensors import CameraCfg, TiledCameraCfg
 from isaaclab.markers import VisualizationMarkersCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
@@ -32,12 +33,21 @@ class TeeAlignSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = MISSING
 
     # Top-down camera
-    table_cam: CameraCfg = MISSING
+    tiled_camera: TiledCameraCfg = TiledCameraCfg(
+        prim_path="{ENV_REGEX_NS}/Camera",
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.275, -0.05, 2), rot=(1.0, 0.0, 0.0, 0.0), convention="opengl"),
+        data_types=["rgb", "depth", "semantic_segmentation"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
+        ),
+        width=640,
+        height=480,
+    )
 
     # Table
     table = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Table",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5, 0, 0), rot=(0.707, 0, 0, 0.707)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0, 0, 0), rot=(0.707, 0, 0, 0.707)),
         spawn=UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/ThorlabsTable/table_instanceable.usd"),
     )
 
@@ -45,6 +55,7 @@ class TeeAlignSceneCfg(InteractiveSceneCfg):
     tee_object = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/TeeObject",
         spawn=UsdFileCfg(
+            scale=(0.0005, 0.0005, 0.0005),
             usd_path=f"{pwd}/resource/Tee.usd",
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,
@@ -57,10 +68,10 @@ class TeeAlignSceneCfg(InteractiveSceneCfg):
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 0.0), metallic=0.2),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.5, 0.2, 0.05),  # On table surface
-            rot=(1.0, 0.0, 0.0, 0.0),  # No rotation
-            lin_vel=(0.0, 0.0, 0.0),  # No initial velocity
-            ang_vel=(0.0, 0.0, 0.0),  # No initial angular velocity
+            pos=(0.275, -0.05, 0.7845),  # On table surface
+            # rot=(1.0, 0.0, 0.0, 0.0),  # No rotation
+            # lin_vel=(0.0, 0.0, 0.0),  # No initial velocity
+            # ang_vel=(0.0, 0.0, 0.0),  # No initial angular velocity
         ),
     )
 
@@ -96,7 +107,8 @@ class CommandsCfg:
             markers={
                 "goal": UsdFileCfg(
                     usd_path=f"{pwd}/resource/Tee.usd",
-                    scale=(1.0, 1.0, 1.0),
+                    scale=(0.0005, 0.0005, 0.0005),
+                    visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0), metallic=0.2),
                 ),
             },
         ),
@@ -117,14 +129,19 @@ class ObservationsCfg:
     @configclass
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
-
         actions = ObsTerm(func=mdp.last_action)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        tee_object_pos = ObsTerm(func=mdp.tee_object_pos)
-        tee_object_rot = ObsTerm(func=mdp.tee_object_rot)
-        tee_marker_pos = ObsTerm(func=mdp.tee_marker_pos)
-        tee_marker_rot = ObsTerm(func=mdp.tee_marker_rot)
+        tee_object_pos = ObsTerm(
+            func=mdp.root_pos_w,
+            params={"asset_cfg": SceneEntityCfg("tee_object")}
+        )
+        tee_object_rot = ObsTerm(
+            func=mdp.root_quat_w,
+            params={"asset_cfg": SceneEntityCfg("tee_object"), "make_quat_unique": False}
+        )
+        # tee_marker_pos = ObsTerm(func=mdp.tee_marker_pos)
+        # tee_marker_rot = ObsTerm(func=mdp.tee_marker_rot)
         goal_pose = ObsTerm(func=mdp.generated_commands, params={"command_name": "tee_pose"})
         goal_quat_diff = ObsTerm(
             func=mdp.goal_quat_diff,
@@ -133,24 +150,48 @@ class ObservationsCfg:
 
         def __post_init__(self):
             self.enable_corruption = False
-            self.concatenate_terms = False
+            self.concatenate_terms = True
 
     @configclass
     class RGBCameraPolicyCfg(ObsGroup):
         """Observations for policy group with RGB images."""
 
-        table_cam = ObsTerm(
-            func=mdp.image, 
-            params={"sensor_cfg": SceneEntityCfg("table_cam"), "data_type": "rgb", "normalize": False}
-        )
+        image = ObsTerm(func=mdp.image, params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb"})
+        # image = ObsTerm(
+        #     func=mdp.image_features,
+        #     params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb", "model_name": "resnet18"},
+        # )
+        # image = ObsTerm(
+        #     func=mdp.image_features,
+        #     params={
+        #         "sensor_cfg": SceneEntityCfg("tiled_camera"),
+        #         "data_type": "rgb",
+        #         "model_name": "theia-tiny-patch16-224-cddsv",
+        #         "model_device": "cuda:0",
+        #     },
+        # )
 
         def __post_init__(self):
             self.enable_corruption = False
-            self.concatenate_terms = False
+            self.concatenate_terms = True
 
     # Observation groups
     policy: PolicyCfg = PolicyCfg()
     rgb_camera: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
+
+@configclass
+class EventCfg:
+    """Configuration for events."""
+
+    reset_object_position = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (0.2, 0.6), "y": (-0.2, 0.2), "z": (0.0, 0.0)},
+            "velocity_range": {},
+            "asset_cfg": SceneEntityCfg("tee_object", body_names="Tee"),
+        },
+    )
 
 @configclass
 class RewardsCfg:
@@ -175,7 +216,7 @@ class RewardsCfg:
         params={"object_cfg": SceneEntityCfg("tee_object"), "command_name": "tee_pose"}
     )
     # Penalty for excessive movement
-    action_penalty = RewTerm(func=mdp.action_magnitude_penalty, weight=-0.1)
+    # action_penalty = RewTerm(func=mdp.action_magnitude_penalty, weight=-0.1)
 
 @configclass
 class TerminationsCfg:
@@ -201,9 +242,9 @@ class TeeAlignEnvCfg(ManagerBasedRLEnvCfg):
     commands: CommandsCfg = CommandsCfg()
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
+    events: EventCfg = EventCfg()
 
     # Unused managers
-    events = None
     curriculum = None
 
     def __post_init__(self):
