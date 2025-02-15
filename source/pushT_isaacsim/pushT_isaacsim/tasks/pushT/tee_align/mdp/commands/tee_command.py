@@ -47,7 +47,9 @@ class TeeAlignCommand(CommandTerm):
 
         # create buffers to store the command
         # -- command: (x, y, z)
-        self.pos_command_w = torch.zeros(self.num_envs, 3, device=self.device)
+        init_pos_offset = torch.tensor(cfg.init_pos_offset, dtype=torch.float, device=self.device)
+        self.pos_command_e = self.object.data.default_root_state[:, :3] + init_pos_offset
+        self.pos_command_w = self.pos_command_e + self._env.scene.env_origins
         # -- orientation: (w, x, y, z)
         self.quat_command_w = torch.zeros(self.num_envs, 4, device=self.device)
         self.quat_command_w[:, 0] = 1.0  # set the scalar component to 1.0
@@ -92,22 +94,48 @@ class TeeAlignCommand(CommandTerm):
         self.metrics["consecutive_success"] += successes.float()
 
     def _resample_command(self, env_ids: Sequence[int]):
-        # sample new position targets on table surface
-        # -- x: forward/back on table
-        pos_x = 0.5 + 0.2 * (2.0 * torch.rand(len(env_ids), device=self.device) - 1.0)  # 0.3 to 0.7
-        # -- y: left/right on table
-        pos_y = 0.2 * (2.0 * torch.rand(len(env_ids), device=self.device) - 1.0)  # -0.2 to 0.2
-        # -- z: fixed height above table
-        pos_z = torch.full((len(env_ids),), 0.05, device=self.device)
-        # combine positions
-        self.pos_command_w[env_ids] = torch.stack((pos_x, pos_y, pos_z), dim=-1)
+        """Resample command poses for specified environments.
+        
+        This function generates new target poses for the T-shaped object. The poses consist of:
+        1. Position: Sampled on the table surface within defined bounds
+        - x: 0.2 to 0.4 (forward/back)
+        - y: -0.2 to 0.2 (left/right)
+        - z: fixed at 0 (height above table)
+        2. Orientation: Rotation only around z-axis (2D alignment)
+        - random angle between 0 and 2π
+        
+        Args:
+            env_ids: Sequence of environment IDs to resample commands for
+        """
+        # Number of environments to resample
+        num_envs = len(env_ids)
+        
+        # 1. Sample position targets on table surface
+        # -- x position (forward/back): centered at 0.3 with ±0.1 range
+        # pos_x = 0.3 + 0.1 * (2.0 * torch.rand(num_envs, device=self.device) - 1.0)
+        pos_x = 0.45*torch.ones((num_envs,), device=self.device)
+        
+        # -- y position (left/right): centered at 0 with ±0.2 range
+        # pos_y = 0.0 + 0.2 * (2.0 * torch.rand(num_envs, device=self.device) - 1.0)
+        pos_y = 0.0*torch.ones((num_envs,), device=self.device)
+        
+        # -- z position (height): fixed at 0 above table
+        pos_z = torch.zeros((num_envs,), device=self.device)
+        
+        # Combine into position vector [x, y, z]
+        self.pos_command_w[env_ids] = torch.stack((pos_x, pos_y, pos_z), dim=-1) + self._env.scene.env_origins[env_ids]
 
-        # sample new orientation targets
-        # -- only rotate around z-axis for 2D alignment
-        rand_angle = 2.0 * torch.pi * torch.rand(len(env_ids), device=self.device)  # 0 to 2π
+        # 2. Sample orientation targets
+        # -- Generate random angles around z-axis (0 to 2π)
+        rand_angle = 2.0 * torch.pi * torch.rand(num_envs, device=self.device)
+        
+        # -- Convert angles to quaternions (rotation around z-axis only)
         quat = math_utils.quat_from_angle_axis(rand_angle, self._Z_UNIT_VEC[env_ids])
-        # make quaternion unique if configured
-        self.quat_command_w[env_ids] = math_utils.quat_unique(quat) if self.cfg.make_quat_unique else quat
+        
+        # -- Apply quaternion uniqueness if configured
+        self.quat_command_w[env_ids] = (
+            math_utils.quat_unique(quat) if self.cfg.make_quat_unique else quat
+        )
 
     def _update_command(self):
         # update the command if goal is reached

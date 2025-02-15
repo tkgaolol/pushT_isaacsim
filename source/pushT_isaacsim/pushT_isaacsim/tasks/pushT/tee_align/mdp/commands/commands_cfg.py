@@ -27,22 +27,22 @@ class TeeAlignCommandCfg(CommandTermCfg):
     init_pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
     """Position offset of the asset from its default position."""
 
-    make_quat_unique: bool = False
+    make_quat_unique: bool = MISSING
     """Whether to make the quaternion unique or not."""
 
-    position_success_threshold: float = 0.02
+    position_success_threshold: float = MISSING
     """Threshold for the position error to consider the goal position to be reached."""
 
-    orientation_success_threshold: float = 0.1
+    orientation_success_threshold: float = MISSING
     """Threshold for the orientation error to consider the goal orientation to be reached."""
 
-    update_goal_on_success: bool = True
+    update_goal_on_success: bool = MISSING
     """Whether to update the goal pose when the goal pose is reached."""
 
-    marker_pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.1)
+    marker_pos_offset: tuple[float, float, float] = MISSING
     """Position offset of the marker from the object's desired position."""
 
-    debug_vis: bool = True
+    debug_vis: bool = MISSING
     """Whether to enable debug visualization."""
 
     goal_pose_visualizer_cfg: VisualizationMarkersCfg = VisualizationMarkersCfg(

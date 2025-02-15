@@ -22,7 +22,7 @@ def tee_distance_reward(
     object: RigidObject = env.scene[object_cfg.name]
     command = env.command_manager.get_command(command_name)
     
-    object_pos = object.data.root_pos_w - env.scene.env_origins
+    object_pos = object.data.root_pos_w
     command_pos = command[:, 0:3]
     distance = torch.norm(object_pos - command_pos, p=2, dim=-1)
     return distance
@@ -86,7 +86,7 @@ def success_bonus(
     object: RigidObject = env.scene[object_cfg.name]
     command = env.command_manager.get_command(command_name)
     
-    object_pos = object.data.root_pos_w - env.scene.env_origins
+    object_pos = object.data.root_pos_w
     command_pos = command[:, 0:3]
     object_quat = object.data.root_quat_w
     command_quat = command[:, 3:7]

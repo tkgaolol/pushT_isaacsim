@@ -47,7 +47,7 @@ class TeeAlignSceneCfg(InteractiveSceneCfg):
     # Table
     table = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Table",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0, 0, 0), rot=(0.707, 0, 0, 0.707)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0, 0, 0), rot=(0, 0, 0, 0)),
         spawn=UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/ThorlabsTable/table_instanceable.usd"),
     )
 
@@ -68,7 +68,7 @@ class TeeAlignSceneCfg(InteractiveSceneCfg):
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 0.0), metallic=0.2),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.275, -0.05, 0.7845),  # On table surface
+            pos=(0.0, 0, 0),  # On table surface
             # rot=(1.0, 0.0, 0.0, 0.0),  # No rotation
             # lin_vel=(0.0, 0.0, 0.0),  # No initial velocity
             # ang_vel=(0.0, 0.0, 0.0),  # No initial angular velocity
@@ -101,7 +101,7 @@ class CommandsCfg:
         position_success_threshold=0.02,  # 2cm
         orientation_success_threshold=0.1,  # ~5.7 degrees
         make_quat_unique=False,
-        marker_pos_offset=(0.0, 0.0, 0.1),  # 10cm above target for better visibility
+        marker_pos_offset=(0.0, 0.0, 0.0), 
         goal_pose_visualizer_cfg=VisualizationMarkersCfg(
             prim_path="/Visuals/Command/goal_marker",
             markers={
@@ -187,11 +187,20 @@ class EventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (0.2, 0.6), "y": (-0.2, 0.2), "z": (0.0, 0.0)},
+            # "pose_range": {"x": (0.2, 0.4), "y": (-0.2, 0.2), "z": (0.0, 0.0)},
+            "pose_range": {"x": (0.3, 0.3), "y": (0.0, 0.0), "z": (0.0, 0.0)},
             "velocity_range": {},
-            "asset_cfg": SceneEntityCfg("tee_object", body_names="Tee"),
+            "asset_cfg": SceneEntityCfg("tee_object"),
         },
     )
+
+    # reset_robot_joints = EventTerm(
+    #     func=mdp.set_default_joint_pose,
+    #     mode="reset",
+    #     params={
+    #         "default_pose": [0.0444, -0.1894, -0.1107, -2.5148, 0.0044, 2.3775, 0.6952, 0.0400, 0.0400],
+    #     },
+    # )
 
 @configclass
 class RewardsCfg:
@@ -226,7 +235,7 @@ class TerminationsCfg:
     success = DoneTerm(func=mdp.tee_aligned)
     object_out_of_reach = DoneTerm(
         func=mdp.object_away_from_robot, 
-        params={"threshold": 0.3, "asset_cfg": SceneEntityCfg("robot"), "object_cfg": SceneEntityCfg("tee_object")}
+        params={"threshold": 0.95, "asset_cfg": SceneEntityCfg("robot"), "object_cfg": SceneEntityCfg("tee_object")}
     )
 
 @configclass

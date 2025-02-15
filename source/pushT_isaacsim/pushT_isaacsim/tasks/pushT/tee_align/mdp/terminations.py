@@ -52,7 +52,7 @@ def tee_aligned(
 
 def object_away_from_robot(
     env: "ManagerBasedRLEnv",
-    threshold: float = 0.3,
+    threshold: float = 0.95,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     object_cfg: SceneEntityCfg = SceneEntityCfg("tee_object")
 ) -> torch.Tensor:
