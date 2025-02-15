@@ -11,8 +11,8 @@ from isaaclab.utils import configclass
 @configclass
 class ElfinTeeAlignPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 96
-    max_iterations = 400
-    save_interval = 50
+    max_iterations = 7000
+    save_interval = 500
     experiment_name = "elfin_tee_align"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
