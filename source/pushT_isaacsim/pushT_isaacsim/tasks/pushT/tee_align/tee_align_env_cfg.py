@@ -32,17 +32,17 @@ class TeeAlignSceneCfg(InteractiveSceneCfg):
     # Robot configuration
     robot: ArticulationCfg = MISSING
 
-    # Top-down camera
-    tiled_camera: TiledCameraCfg = TiledCameraCfg(
-        prim_path="{ENV_REGEX_NS}/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=(0.275, -0.05, 2), rot=(1.0, 0.0, 0.0, 0.0), convention="opengl"),
-        data_types=["rgb", "depth", "semantic_segmentation"],
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
-        ),
-        width=640,
-        height=480,
-    )
+    # # Top-down camera
+    # tiled_camera: TiledCameraCfg = TiledCameraCfg(
+    #     prim_path="{ENV_REGEX_NS}/Camera",
+    #     offset=TiledCameraCfg.OffsetCfg(pos=(0.275, -0.05, 2), rot=(1.0, 0.0, 0.0, 0.0), convention="opengl"),
+    #     data_types=["rgb", "depth", "semantic_segmentation"],
+    #     spawn=sim_utils.PinholeCameraCfg(
+    #         focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
+    #     ),
+    #     width=640,
+    #     height=480,
+    # )
 
     # Table
     table = AssetBaseCfg(
@@ -152,37 +152,39 @@ class ObservationsCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
-    @configclass
-    class RGBCameraPolicyCfg(ObsGroup):
-        """Observations for policy group with RGB images."""
+    # @configclass
+    # class RGBCameraPolicyCfg(ObsGroup):
+    #     """Observations for policy group with RGB images."""
 
-        image = ObsTerm(func=mdp.image, params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb"})
-        # image = ObsTerm(
-        #     func=mdp.image_features,
-        #     params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb", "model_name": "resnet18"},
-        # )
-        # image = ObsTerm(
-        #     func=mdp.image_features,
-        #     params={
-        #         "sensor_cfg": SceneEntityCfg("tiled_camera"),
-        #         "data_type": "rgb",
-        #         "model_name": "theia-tiny-patch16-224-cddsv",
-        #         "model_device": "cuda:0",
-        #     },
-        # )
+    #     image = ObsTerm(func=mdp.image, params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb"})
+    #     # image = ObsTerm(
+    #     #     func=mdp.image_features,
+    #     #     params={"sensor_cfg": SceneEntityCfg("tiled_camera"), "data_type": "rgb", "model_name": "resnet18"},
+    #     # )
+    #     # image = ObsTerm(
+    #     #     func=mdp.image_features,
+    #     #     params={
+    #     #         "sensor_cfg": SceneEntityCfg("tiled_camera"),
+    #     #         "data_type": "rgb",
+    #     #         "model_name": "theia-tiny-patch16-224-cddsv",
+    #     #         "model_device": "cuda:0",
+    #     #     },
+    #     # )
 
-        def __post_init__(self):
-            self.enable_corruption = False
-            self.concatenate_terms = True
+    #     def __post_init__(self):
+    #         self.enable_corruption = False
+    #         self.concatenate_terms = True
 
     # Observation groups
     policy: PolicyCfg = PolicyCfg()
-    rgb_camera: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
+    # rgb_camera: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
 
 @configclass
 class EventCfg:
     """Configuration for events."""
 
+    reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
+    
     reset_object_position = EventTerm(
         func=mdp.reset_root_state_uniform,
         mode="reset",
